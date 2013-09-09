@@ -25,7 +25,7 @@ import com.sun.tools.attach.VirtualMachine;
 @SuppressWarnings("restriction")
 public class JillegalAgent {   
 
-	public static String VERSION = "1.0.0-RELEASE";
+	public static String VERSION = "1.0.3-RELEASE";
 	
     final static public String CLASS_PATH = System.getProperty("java.class.path");
 	final static public String INSTR_JAR_NAME = "jillegal-agent" + "-" + VERSION + ".jar";
