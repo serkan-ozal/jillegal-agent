@@ -30,7 +30,7 @@ public class OperatingSystemAwareAttachProvider extends AttachProvider {
 				attachProvider = (AttachProvider) Class.forName("sun.tools.attach.LinuxAttachProvider").newInstance();
 			}
 			else if (isMac()) {
-				attachProvider = (AttachProvider) Class.forName("sun.tools.attach.MacosxAttachProvider").newInstance();
+				attachProvider = (AttachProvider) Class.forName("sun.tools.attach.BsdAttachProvider").newInstance();
 			}
 			else if (isSolaris()) {
 				attachProvider = (AttachProvider) Class.forName("sun.tools.attach.SolarisAttachProvider").newInstance();
@@ -38,6 +38,7 @@ public class OperatingSystemAwareAttachProvider extends AttachProvider {
 			else {
 				throw new RuntimeException("There is no supported AttachProvider for current operating system: " + OS);
 			}
+			System.out.println("[INFO] Using attach provider: " + attachProvider);
 		}
 		catch (Throwable t) {
 			throw new RuntimeException(t);

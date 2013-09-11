@@ -3,7 +3,7 @@
   	<modelVersion>4.0.0</modelVersion>
   	<groupId>tr.com.serkanozal</groupId>
   	<artifactId>jillegal-agent</artifactId>
-  	<version>1.0.3-RELEASE</version>
+  	<version>1.0.4-RELEASE</version>
     <name>Jillegal</name>
     <url>https://github.com/serkan-ozal/jillegal-agent</url>
     
@@ -19,7 +19,7 @@
         <maven.surefire.plugin.version>2.9</maven.surefire.plugin.version>
         <maven.deploy.plugin.version>2.6</maven.deploy.plugin.version>
         
-        <tools.version>1.6.1</tools.version>
+        <tools.version>1.6.2</tools.version>
 
     </properties>
   
