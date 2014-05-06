@@ -3,7 +3,7 @@
   	<modelVersion>4.0.0</modelVersion>
   	<groupId>tr.com.serkanozal</groupId>
   	<artifactId>jillegal-agent</artifactId>
-  	<version>1.0.5-RELEASE</version>
+  	<version>1.1.0-RELEASE</version>
     <name>Jillegal</name>
     <url>https://github.com/serkan-ozal/jillegal-agent</url>
     

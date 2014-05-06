@@ -10,6 +10,9 @@ package sun.tools.attach;
 import java.io.IOException;
 import java.util.List;
 
+import tr.com.serkanozal.jillegal.agent.util.LogUtil;
+import tr.com.serkanozal.jillegal.agent.util.OsUtil;
+
 import com.sun.tools.attach.AttachNotSupportedException;
 import com.sun.tools.attach.VirtualMachine;
 import com.sun.tools.attach.VirtualMachineDescriptor;
@@ -17,48 +20,30 @@ import com.sun.tools.attach.spi.AttachProvider;
 
 public class OperatingSystemAwareAttachProvider extends AttachProvider {
 
-	private static String OS = System.getProperty("os.name").toLowerCase();
-	
 	private AttachProvider attachProvider;
 	
 	public OperatingSystemAwareAttachProvider() {
 		try {
-			if (isWindows()) {
+			if (OsUtil.isWindows()) {
 				attachProvider = (AttachProvider) Class.forName("sun.tools.attach.WindowsAttachProvider").newInstance();
 			}
-			else if (isLinux()) {
+			else if (OsUtil.isLinux()) {
 				attachProvider = (AttachProvider) Class.forName("sun.tools.attach.LinuxAttachProvider").newInstance();
 			}
-			else if (isMac()) {
+			else if (OsUtil.isMac()) {
 				attachProvider = (AttachProvider) Class.forName("sun.tools.attach.BsdAttachProvider").newInstance();
 			}
-			else if (isSolaris()) {
+			else if (OsUtil.isSolaris()) {
 				attachProvider = (AttachProvider) Class.forName("sun.tools.attach.SolarisAttachProvider").newInstance();
 			}
 			else {
-				throw new RuntimeException("There is no supported AttachProvider for current operating system: " + OS);
+				throw new RuntimeException("There is no supported AttachProvider for current operating system: " + OsUtil.OS);
 			}
-			System.out.println("[INFO] Using attach provider: " + attachProvider);
+			LogUtil.debug("Using attach provider: " + attachProvider);
 		}
 		catch (Throwable t) {
 			throw new RuntimeException(t);
 		}
-	}
-	
-	private boolean isWindows() {
-		return OS.indexOf("win") >= 0;
-	}
-	
-	private boolean isLinux() {
-		return OS.indexOf("nux") >= 0;
-	}
-		
-	private boolean isMac() {
-		return OS.indexOf("mac") >= 0;
-	}
-
-	private boolean isSolaris() {
-		return OS.indexOf("sunos") >= 0;
 	}
 	
 	@Override
