@@ -15,6 +15,8 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.StringTokenizer;
 import java.util.jar.JarFile;
 
@@ -25,9 +27,8 @@ import com.sun.tools.attach.VirtualMachine;
 @SuppressWarnings("restriction")
 public class JillegalAgent {   
 
-	public static String VERSION = "1.0.4-RELEASE";
+	public static String VERSION = "1.0.5-RELEASE";
 	
-    final static public String CLASS_PATH = System.getProperty("java.class.path");
 	final static public String INSTR_JAR_NAME = "jillegal-agent" + "-" + VERSION + ".jar";
 	final static public String OS_NAME = System.getProperty("os.name");
 	
@@ -50,13 +51,49 @@ public class JillegalAgent {
         info("Premain: " + inst + " - " + "Arguments: " + arguments);
     }
     
+    private static String getClassPath() {
+    	ClassLoader classLoader = JillegalAgent.class.getClassLoader();
+    	if (classLoader == null) {
+    		classLoader = ClassLoader.getSystemClassLoader();
+    	}
+    	info("ClassLoader: " + classLoader);
+    	
+    	StringBuilder classPathBuilder = new StringBuilder();
+    	
+    	classPathBuilder.
+    		append(System.getProperty("java.class.path")).
+    		append(File.pathSeparator);
+    	
+    	if (System.getProperty("surefire.test.class.path") != null) {
+    		classPathBuilder.
+    			append(System.getProperty("surefire.test.class.path")).
+    			append(File.pathSeparator);		
+    	}
+    	
+    	if (classLoader instanceof URLClassLoader) {
+	    	URLClassLoader urlClassLoader = (URLClassLoader)classLoader;
+	    	URL[] urls = urlClassLoader.getURLs();
+	    	for (URL u : urls) {
+	    		String filePath = u.getFile();
+	    		if (filePath.startsWith("/")) {
+	    			filePath = filePath.substring(1);
+	    		}
+	    		classPathBuilder.
+	    			append(filePath).
+	    			append(File.pathSeparator);
+	    	}
+    	}
+    	
+    	return classPathBuilder.toString();
+    }
+    
     private static void initAtMain(String arguments, Instrumentation i) {
         try {
             inst = i;
 
             JarFile agentJarFile = null;
             
-            final StringTokenizer st = new StringTokenizer(CLASS_PATH, File.pathSeparator);
+            final StringTokenizer st = new StringTokenizer(getClassPath(), File.pathSeparator);
             while (st.hasMoreTokens()) {
                 String classpathEntry = st.nextToken().trim();
                 if (classpathEntry.endsWith(INSTR_JAR_NAME)) {
@@ -64,6 +101,8 @@ public class JillegalAgent {
                     break;
                 }
             }
+            
+            info("Agent Jar File: " + agentJarFile);
             
             if (agentJarFile != null) {
                 inst.appendToBootstrapClassLoaderSearch(agentJarFile);
@@ -100,17 +139,13 @@ public class JillegalAgent {
     	}
     	VirtualMachine vm = VirtualMachine.attach(getPidFromRuntimeMBean());
     	String agentPath = null;
-    	info("Class Path: " + CLASS_PATH);
-    	info("OS Name: " + OS_NAME );
     	
-    	String classPathToUse = CLASS_PATH;
-      
-    	if (System.getProperty("surefire.test.class.path") != null) {
-    		classPathToUse = System.getProperty("surefire.test.class.path");
-    	}
-    	info("Using ClassPath: " + classPathToUse);
-
-    	for (String entry : classPathToUse.split(File.pathSeparator)) {
+    	String classPath = getClassPath();
+    	
+    	info("OS Name: " + OS_NAME );
+    	info("Class Path: " + classPath);
+    	
+    	for (String entry : classPath.split(File.pathSeparator)) {
     		if (entry.endsWith(INSTR_JAR_NAME)) {
     			agentPath = entry;
     			break;
