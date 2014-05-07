@@ -1,4 +1,4 @@
-What is Jillegal-Agent
+What is Jillegal-Agent?
 ==============
 
 **Jillegal-Agent** is a dynamic and operating system aware (Windows, Unix, MAC, Solaris) **Java Instrumentation API** service framework. Without any VM argument at startup, you can easily access `java.lang.instrument.Instrumentation` object at runtime to make your instrumentations. At background, Jillegal-Agent, connects current Java process and loads itself as agent library with using **Java Attach API** by `com.sun.tools.attach.VirtualMachine` instance. Note that operating system awareness is needed for using **Java Attach API** to connect current Java process.
