@@ -21,8 +21,8 @@ JillegalAgent.getInstrumentation();
 Installation
 =======
 
-In your `pom.xml`, you must add repository and dependency for Jillegal-Agent. 
-You can change `jillegal.agent.version` to any existing **jillegal-agent** library version.
+In your `pom.xml`, you must add repository and dependency for **Jillegal-Agent**. 
+You can change `jillegal.agent.version` to any existing **Jillegal-Agent** library version.
 Latest version is `1.1.0-RELEASE`.
 
 ~~~~~ xml
