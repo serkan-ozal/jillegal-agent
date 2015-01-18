@@ -32,7 +32,7 @@ public class JillegalAgent {
 
 	public static String VERSION = "1.1.0-RELEASE";
 	
-	final static public String INSTR_JAR_NAME = "jillegal-agent" + "-" + VERSION + ".jar";
+	final static public String INSTR_JAR_PREFIX = "jillegal-agent";
 	
 	private static Instrumentation inst;
 	private static boolean initialized = false;
@@ -92,13 +92,14 @@ public class JillegalAgent {
             final StringTokenizer st = new StringTokenizer(getClassPath(), File.pathSeparator);
             while (st.hasMoreTokens()) {
                 String classpathEntry = st.nextToken().trim();
-                if (classpathEntry.endsWith(INSTR_JAR_NAME)) {
+                File f = new File(classpathEntry);
+                if (f.exists() && f.getName().startsWith(INSTR_JAR_PREFIX)) {
                     agentJarFile = new JarFile(classpathEntry);
                     break;
                 }
             }
             
-            LogUtil.debug("Agent Jar File: " + agentJarFile);
+            LogUtil.debug("Agent Jar File: " + agentJarFile.getName());
             
             if (agentJarFile != null) {
                 inst.appendToBootstrapClassLoaderSearch(agentJarFile);
@@ -180,7 +181,8 @@ public class JillegalAgent {
     	LogUtil.info("Class Path: " + classPath);
     	
     	for (String entry : classPath.split(File.pathSeparator)) {
-    		if (entry.endsWith(INSTR_JAR_NAME)) {
+    		File f = new File(entry);
+            if (f.exists() && f.getName().startsWith(INSTR_JAR_PREFIX)) {
     			agentPath = entry;
     			break;
     		}
