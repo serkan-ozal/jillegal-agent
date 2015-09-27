@@ -1,13 +1,22 @@
-/**
- * @author SERKAN OZAL
- *         
- *         E-Mail: <a href="mailto:serkanozal86@hotmail.com">serkanozal86@hotmail.com</a>
- *         GitHub: <a>https://github.com/serkan-ozal</a>
+/*
+ * Copyright (c) 1986-2015, Serkan OZAL, All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
 package tr.com.serkanozal.jillegal.agent;
 
 import java.io.File;
+import java.io.PrintStream;
 import java.lang.instrument.ClassDefinition;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
@@ -17,25 +26,41 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.security.InvalidParameterException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.jar.JarFile;
 
 import sun.management.VMManagement;
+import tr.com.serkanozal.jillegal.agent.JillegalAgentClassTransformer.ClassDataProcessorHandler;
 import tr.com.serkanozal.jillegal.agent.util.ClassLoaderUtil;
+import tr.com.serkanozal.jillegal.agent.util.InstanceUtil;
 import tr.com.serkanozal.jillegal.agent.util.LogUtil;
 import tr.com.serkanozal.jillegal.agent.util.OsUtil;
 
 import com.sun.tools.attach.VirtualMachine;
 
+/**
+ * Java agent implementation for <tt>jillegal-agent</tt> framework.
+ * 
+ * @author Serkan OZAL
+ */
 @SuppressWarnings("restriction")
-public class JillegalAgent {   
+public final class JillegalAgent {   
 
-	public static String VERSION = "1.1.0-RELEASE";
+	public static String VERSION = "2.0";
 	
 	final static public String INSTR_JAR_PREFIX = "jillegal-agent";
+	final static public String NATIVE_METHOD_PREFIX = "jillegal_agent";
 	
-	private static Instrumentation inst;
-	private static boolean initialized = false;
+	private static volatile Instrumentation inst;
+	private static volatile boolean initialized;
+	
+	static {
+	    JillegalAgentClassTransformer.init();
+	}
 	
 	private JillegalAgent() {
 	    
@@ -87,6 +112,7 @@ public class JillegalAgent {
         try {
             inst = i;
 
+            processArguments(arguments, i);
             JarFile agentJarFile = null;
             
             final StringTokenizer st = new StringTokenizer(getClassPath(), File.pathSeparator);
@@ -126,7 +152,7 @@ public class JillegalAgent {
         }
     }
     
-    private static void initInstrumentationIfNeeded() {
+    private synchronized static void initInstrumentationIfNeeded() {
     	if (inst == null) {
     		try {
     			Class<?> clazz = 
@@ -148,29 +174,30 @@ public class JillegalAgent {
     }
     
     public static void init() {
-    	init(null);
+        initInternal(null);
     }
     
     public static void init(String arguments) {
-    	if (initialized) {
-    		LogUtil.warn("Agent has been already initialized");
-    		return;
-    	}
-    	
+        initInternal(arguments);
+    }
+    
+    private synchronized static void initInternal(String arguments) {
+        if (initialized) {
+            LogUtil.warn("Agent has been already initialized");
+            return;
+        }
+        
         try {
-        	LogUtil.intro();
-        	
-            loadAgent();
+            LogUtil.intro();
+            
+            loadAgent(arguments);
         }
         catch (Throwable t) {
-        	LogUtil.error("Error at JillegalAgent.init(String arguments)", t);
+            LogUtil.error("Error at JillegalAgent.initInternal(String arguments)", t);
+            throw new RuntimeException(t);
         }
     }
-    
-    private static void loadAgent() throws Exception {
-        loadAgent(null);
-    }
-    
+
 	private static void loadAgent(String arguments) throws Exception {
     	VirtualMachine vm = VirtualMachine.attach(getPidFromRuntimeMBean());
     	String agentPath = null;
@@ -223,7 +250,7 @@ public class JillegalAgent {
             inst.retransformClasses(clazz);
         }
         catch (UnmodifiableClassException e) {
-        	LogUtil.error("Error at JillegalAgent.redefineClass(Class<?> clazz)", e);
+        	LogUtil.error("Error at JillegalAgent.retransformClass(Class<?> clazz)", e);
         }
     }
     
@@ -253,6 +280,94 @@ public class JillegalAgent {
         Integer processId = (Integer) method.invoke(management);
 
         return processId.toString();
+    }
+    
+    private static void processArguments(String arguments, Instrumentation i) throws Exception {
+        if (arguments == null) {
+            return;
+        }
+        arguments = arguments.trim();
+        if (arguments.length() == 0) {
+            return;
+        }
+        String args[] = arguments.split("\\s+");
+        String command = args[0];
+        if ("-h".equals(command) || "-help".equals(command)) {
+            printUsage(false);
+        } else if ("-p".equals(command)) {
+            handleClassDataProcessorArguments(args, i);
+        } else {
+            invalidUsage();
+            throw new InvalidParameterException();
+        }
+    }
+    
+    private static void handleClassDataProcessorArguments(String args[], Instrumentation i) throws Exception {
+        Collection<ClassDataProcessorHandler> handlers = createHandlersFromArguments(args);
+        if (handlers != null && !handlers.isEmpty()) {
+            JillegalAgentClassTransformer transformer = new JillegalAgentClassTransformer(handlers);
+            inst.addTransformer(transformer);
+            inst.setNativeMethodPrefix(transformer, NATIVE_METHOD_PREFIX);
+        }    
+    }
+    
+    private static Collection<ClassDataProcessorHandler> createHandlersFromArguments(String args[]) 
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+        if (args.length < 2) {
+            invalidUsage();
+            throw new InvalidParameterException();
+        }
+        List<ClassDataProcessorHandler> handlers = new ArrayList<ClassDataProcessorHandler>();
+        for (int i = 1; i < args.length; i++) {
+            String argParts[] = args[i].split("=");
+            if (argParts.length == 1) {
+                String classDataProcessorName = argParts[0];
+                ClassDataProcessor processor = InstanceUtil.createInstance(classDataProcessorName);
+                if (processor instanceof TargetAwareClassDataProcessor) {
+                    handlers.add(
+                            JillegalAgentClassTransformer.createHandlerAsTargetAware(
+                                    (TargetAwareClassDataProcessor) processor));
+                } else {
+                    handlers.add(JillegalAgentClassTransformer.createHandlerAsInterestedInWithAll(processor));
+                }    
+            } else if (argParts.length == 2) {
+                String classDataProcessorName = argParts[0];
+                ClassDataProcessor processor = InstanceUtil.createInstance(classDataProcessorName);
+                if (processor instanceof TargetAwareClassDataProcessor) {
+                    handlers.add(
+                            JillegalAgentClassTransformer.createHandlerAsTargetAware(
+                                    (TargetAwareClassDataProcessor) processor));
+                } 
+                String targets[] = argParts[1].split(",");
+                for (String target : targets) {
+                    handlers.add(JillegalAgentClassTransformer.createHandlerAsDefined(processor, target));
+                }
+            } else {
+                invalidUsage();
+                throw new InvalidParameterException();
+            }
+        }
+
+        return handlers;
+    }
+    
+    private static void invalidUsage() {
+        System.err.println("Invalid usage!");
+        printUsage(true);
+    }
+    
+    private static void printUsage(boolean error) {
+        @SuppressWarnings("resource")
+        PrintStream ps = error ? System.err : System.out;
+        ps.println(
+                "-javaagent:<path_to_agent_jar>/jillegal-agent-" + VERSION + ".jar" + 
+                    "[" + 
+                        "=" + 
+                        "-p " + 
+                        "[" + 
+                            "<class_data_processor>[=<target>[,<target>]*]" + 
+                        "]+" + 
+                    "]");
     }
 
 }
